@@ -30,7 +30,7 @@ function init() {
               ctx.save();
               ctx.translate(0, mill.ropeLength);
               drawingMill({
-                  colorBlade:"blue",
+                  colorBlade:"green",
                   num_lines: 30,
                   lineLength: 30,
                   ropeLength: 50,
