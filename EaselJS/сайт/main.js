@@ -48,15 +48,17 @@ function init() {
     var sector5 = new createjs.Shape();
     var sector6 = new createjs.Shape();
 
-    //var radius = canvas.width / 2;
-    var radius = 100;
-    var beginPoint = {x: canvas.width / 2, y: canvas.height/2};
+    var radius = canvas.width;
+    //var radius = 100;
+    var beginPoint = {x: canvas.width/2 , y: canvas.height};
 
-    var object = {angle: 0, current_leaf: 1};
+    var animator = {angleChanger: 30, active: null};
     // Twin.create(object, 'angle', Math.PI);
     //createjs.Ticker()
 
-    stage.addEventListener('tick', )
+
+
+    //stage.addEventListener('tick', )
 
     var sectors = [
 		{shape: sector1, color: "blue", x0: beginPoint.x, y0: beginPoint.y, x1:null, y1:null, x2:null, y2: null, angle: null},
@@ -71,6 +73,7 @@ function init() {
     drawSectorsOnStage();
 
     function drawSector(sector) {
+        sector.shape.graphics.clear();
         sector.shape.graphics
             .setStrokeStyle(2) //толщина
             .beginStroke("black")
@@ -106,7 +109,7 @@ function init() {
 
     function drawSectorsOnStage(){
         for (var i = 0; i < sectors.length; i++){
-            console.log(i + "draw" + sectors[i].color);
+            //console.log(i + "draw" + sectors[i].color);
             drawSector(sectors[i]);
 
             //console.log(sectors[i].x1, sectors[i].y1);
@@ -119,12 +122,20 @@ function init() {
         stage.update();
     }
 
+    createjs.Ticker.framerate = 30;
+    createjs.Ticker.addEventListener(
+        'tick',
+        function(e) {
+            stage.update();
+            //calculateStartCoordinates();
+            transformSelection(animator.active);
+        }
+    );
 
 
     stage.addEventListener('click', function(e) {
         clickX = toXCoords(stage.mouseX);
         clickY = toYCoords(stage.mouseY);
-        //console.log(clickX, clickY);
 
         for (var i = 0; i < 6; i++){
             var a = (0 - clickX) * (sectors[i].y1 - 0) - (sectors[i].x1 - 0) * (0 - clickY);
@@ -133,23 +144,21 @@ function init() {
 
             if ((a >= 0 && b >= 0 && c >= 0) || (a <= 0 && b <= 0 && c <= 0))
             {
+                animator.angleChanger = toDeg(sectors[i].angle);
+                console.log(toDeg(sectors[i].angle));
+                var t = createjs.Tween.get(animator, {loop: false});
+                t.to({angleChanger:105}, 1200, createjs.Ease.backInOut);
                 console.log(sectors[i].color);
-
-                calculateStartCoordinates();
-                //drawSectorsOnStage()
-                transformSelection(i);
-
+                animator.active = i;
                 break;
             }
-
-
         }
     });
 
     function groupSectors(indexOfActive) {
         var firstGroup = [];
         var secondGroup = [];
-        console.log("!!!!" + sectors[indexOfActive] + ' ' + indexOfActive);
+        //console.log("!!!!" + sectors[indexOfActive] + ' ' + indexOfActive);
         for (var i = 0; i < sectors.length; i++)
             if ( i < indexOfActive )
                 firstGroup.push(sectors[i]);
@@ -176,23 +185,34 @@ function init() {
 
     //Вычисление новых углов для секторов и для их "групп"-оберток
     function calculateNewAngles(newSectorsGroup) {
-        reducer = 2;
-        devideAngle(reducer);
-        newSectorsGroup.active.angle = (sectors.length - 1) * sectors[0].angle + sectors[0].angle * reducer;
-        newSectorsGroup.active.activeSector.angle = (sectors.length - 1) * sectors[0].angle + sectors[0].angle * reducer;
+
+        changeAngle(animator.angleChanger);
+
+        /*newSectorsGroup.active.angle = (sectors.length - 1) * sectors[0].angle + sectors[0].angle * 2;
+        newSectorsGroup.active.activeSector.angle = (sectors.length - 1) * sectors[0].angle + sectors[0].angle * 2;
+        */
+
         newSectorsGroup.group1.singleSectorAngle = sectors[0].angle;
         newSectorsGroup.group2.singleSectorAngle = sectors[0].angle;
-        newSectorsGroup.group1.angle = newSectorsGroup.group1.sectorsList.length * newSectorsGroup.group1.singleSectorAngle;
+        newSectorsGroup.group1.angle =  newSectorsGroup.group1.sectorsList.length * newSectorsGroup.group1.singleSectorAngle;
         newSectorsGroup.group2.angle = newSectorsGroup.group2.sectorsList.length * newSectorsGroup.group2.singleSectorAngle;
 
+        newSectorsGroup.active.angle = toRad(animator.angleChanger);
+        newSectorsGroup.active.activeSector.angle = toRad(animator.angleChanger);
 
-        console.log(toDeg(sectors[0].angle), toDeg(newSectorsGroup.active.angle), toDeg(newSectorsGroup.group1.angle), toDeg(newSectorsGroup.group2.angle));
+        //console.log(toDeg(sectors[0].angle), toDeg(newSectorsGroup.active.angle), toDeg(newSectorsGroup.group1.angle), toDeg(newSectorsGroup.group2.angle));
     }
 
     //Уменьшить углы у объектов
     function devideAngle(divider){
         for (var i = 0; i < 6; i++){
             sectors[i].angle = sectors[i].angle / divider;
+        }
+    }
+
+    function changeAngle(changer) {
+        for (var i = 0; i < 6; i++){
+            sectors[i].angle = (toRad(180) - toRad(changer)) / (sectors.length - 1);
         }
     }
 
@@ -205,19 +225,15 @@ function init() {
         for (var j = 0; j < newSectorsGroup.group2.sectorsList.length; j++){
             calculateCoordinates(newSectorsGroup.group2.sectorsList[j], newSectorsGroup.group1.angle + newSectorsGroup.active.activeSector.angle, j)
         }
-
     }
 
     function transformSelection(indexOfActive) {
-        var transformingGroup = groupSectors(indexOfActive);
-        calculateNewAngles(transformingGroup);
-        calculateTransformedCoordinates(transformingGroup);
-        drawSectorsOnStage();
-
-
-
-
-
+        if (indexOfActive != null){
+            var transformingGroup = groupSectors(indexOfActive);
+            calculateNewAngles(transformingGroup);
+            calculateTransformedCoordinates(transformingGroup);
+            drawSectorsOnStage();
+        }
     }
 
 
